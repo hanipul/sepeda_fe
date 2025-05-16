@@ -1,167 +1,145 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import Signup from "./Signup";
 
 const BASE_URL = "http://192.168.18.198:3000";
 
-function App() {
+export default function App() {
      const [status, setStatus] = useState("Waiting for RFID scan...");
      const [cardStatus, setCardStatus] = useState("");
      const [dataKartu, setDataKartu] = useState(null);
      const [distance, setDistance] = useState(0);
      const [calories, setCalories] = useState(0);
      const [showResult, setShowResult] = useState(false);
-     const [polling, setPolling] = useState(null);
      const [sessionEnded, setSessionEnded] = useState(false);
+     const [openModal, setOpenModal] = useState(false);
+     const [cardId, setCardId] = useState(null);
+     const pollRef = useRef(null);
+
+     // Cleanup saat unmount atau ganti polling
+     useEffect(() => {
+          return () => clearInterval(pollRef.current);
+     }, []);
 
      const startMonitoring = () => {
+          clearInterval(pollRef.current);
           setStatus("⏳ Menunggu kartu RFID...");
           setCardStatus("");
           setShowResult(false);
           setSessionEnded(false);
 
           let attempt = 0;
-          const interval = setInterval(async () => {
+          pollRef.current = setInterval(async () => {
+               attempt++;
                try {
                     const res = await fetch(`${BASE_URL}/scan/card`);
-                    attempt++;
-
-                    if (res.ok) {
-                         const data = await res.json();
-                         clearInterval(interval);
-                         localStorage.setItem("activeCardId", data.cardId);
-
-                         const checkRes = await fetch(
-                              `${BASE_URL}/sessions/check-user`,
-                              {
-                                   method: "POST",
-                                   headers: {
-                                        "Content-Type": "application/json",
-                                   },
-                                   body: JSON.stringify({
-                                        cardId: data.cardId,
-                                   }),
-                              }
-                         );
-
-                         const checkData = await checkRes.json();
-
-                         if (checkData.userExists) {
-                              setCardStatus(
-                                   "✅ Kartu terbaca! Silakan mulai olahraga."
-                              );
-                              setDataKartu(data);
-                              setStatus("🚴 Monitoring sesi...");
-                              setTimeout(() => startEndPolling(), 1500);
-                         } else {
-                              window.location.href = "/signup";
+                    if (!res.ok) {
+                         if (attempt > 15) {
+                              clearInterval(pollRef.current);
+                              setStatus("⛔ Tidak ada kartu terdeteksi.");
                          }
+                         return;
                     }
+                    const { cardId } = await res.json();
+                    clearInterval(pollRef.current);
+                    localStorage.setItem("activeCardId", cardId);
+                    setCardId(cardId);
 
-                    if (attempt > 15) {
-                         clearInterval(interval);
-                         setStatus("⛔ Tidak ada kartu terdeteksi.");
+                    const checkRes = await fetch(
+                         `${BASE_URL}/sessions/check-user`,
+                         {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ cardId }),
+                         }
+                    );
+                    const { userExists } = await checkRes.json();
+                    if (userExists) {
+                         setCardStatus(
+                              "✅ Kartu terbaca! Silakan mulai olahraga."
+                         );
+                         setDataKartu({ cardId });
+                         setStatus("🚴 Monitoring sesi...");
+                         setTimeout(startEndPolling, 1500);
+                    } else {
+                         setOpenModal(true);
                     }
                } catch (err) {
                     console.error("Polling error:", err);
+                    clearInterval(pollRef.current);
+                    setStatus("❌ Terjadi kesalahan polling.");
                }
           }, 2000);
-
-          setPolling(interval);
      };
 
      const startEndPolling = () => {
-          const interval = setInterval(async () => {
+          clearInterval(pollRef.current);
+          pollRef.current = setInterval(async () => {
                try {
                     const res = await fetch(
                          `${BASE_URL}/sessions/active-latest`
                     );
                     if (res.status === 404 && !sessionEnded) {
+                         clearInterval(pollRef.current);
                          setSessionEnded(true);
-                         clearInterval(interval);
-
-                         const cardId = localStorage.getItem("activeCardId");
                          setCardStatus("✅ Sesi berakhir.");
                          setStatus("⏳ Mengambil hasil latihan...");
-
                          setTimeout(() => fetchFinalSession(cardId), 1500);
                     }
                } catch (err) {
-                    console.error("Polling error on end:", err);
+                    console.error("Polling end error:", err);
+                    clearInterval(pollRef.current);
                }
           }, 2000);
-
-          setPolling(interval);
      };
 
      const fetchFinalSession = async (cardId) => {
           try {
                const res = await fetch(`${BASE_URL}/sessions/${cardId}`);
-               const data = await res.json();
-               if (data.sessions && data.sessions.length > 0) {
-                    const session = data.sessions[0];
-                    setStatus("✅ Sesi selesai.");
-                    setDistance(session.distance?.toFixed(2) ?? "0");
-                    setCalories(session.calories?.toFixed(2) ?? "0");
+               const { sessions } = await res.json();
+               if (sessions?.length) {
+                    const s = sessions[0];
+                    setDistance(s.distance?.toFixed(2) ?? "0");
+                    setCalories(s.calories?.toFixed(2) ?? "0");
                     setShowResult(true);
+                    setStatus("✅ Sesi selesai.");
                } else {
                     alert("❌ Sesi tidak ditemukan.");
                }
           } catch (err) {
-               console.error("❌ Gagal ambil sesi:", err);
-               alert("Gagal mengambil data sesi.");
+               console.error("Fetch final error:", err);
+               alert("❌ Gagal mengambil data sesi.");
+               setStatus("❌ Error fetching session.");
           }
      };
 
      const promptUpdateWeight = () => {
-          const cardId = localStorage.getItem("activeCardId");
           if (!cardId) return alert("Scan kartu dulu sebelum update berat.");
-
-          const newWeight = prompt("Masukkan berat badan terbaru (kg):");
-          if (newWeight && !isNaN(newWeight)) {
-               fetch(`${BASE_URL}/users/${cardId}`, {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ weight: Number(newWeight) }),
-               })
-                    .then(async (res) => {
-                         const data = await res.json();
-                         if (res.ok) {
-                              alert("✅ Berat badan berhasil diperbarui!");
-                         } else {
-                              alert("❌ Gagal update: " + data.message);
-                         }
-                    })
-                    .catch((err) => {
-                         console.error(err);
-                         alert("Terjadi kesalahan saat mengupdate.");
-                    });
-          } else {
-               alert("Input tidak valid.");
-          }
-     };
-
-     const fetchLatestUserSesion = async () => {
-          try {
-               const res = await fetch(
-                    `${BASE_URL}/sessions/latest/${dataKartu.cardId}`
-               );
-               if (res.ok) {
-                    const data = await res.json();
-                    console.log(
-                         "---------------Latest session data ----------- :",
-                         data
+          const input = prompt("Masukkan berat badan terbaru (kg):");
+          const w = Number(input);
+          if (!input || isNaN(w)) return alert("Input tidak valid.");
+          fetch(`${BASE_URL}/users/${cardId}`, {
+               method: "PUT",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({ weight: w }),
+          })
+               .then(async (res) => {
+                    const { message } = await res.json();
+                    alert(
+                         res.ok
+                              ? "✅ Berat berhasil diperbarui!"
+                              : `❌ ${message}`
                     );
-               } else {
-                    console.error("Failed to fetch latest session.");
-               }
-          } catch (error) {
-               console.error("Error fetching latest user session:", error);
-               alert("Gagal mengambil data sesi terbaru.");
-          }
+               })
+               .catch((e) => {
+                    console.error(e);
+                    alert("❌ Error updating weight.");
+               });
      };
 
      useEffect(() => {
           if (dataKartu) {
-               fetchLatestUserSesion();
+               // bisa fetch latest session atau data user di sini
+               console.log("Data kartu:", dataKartu);
           }
      }, [dataKartu]);
 
@@ -170,32 +148,38 @@ function App() {
                <header>
                     <h1>SEPEDA STATIS</h1>
                </header>
-
                <main className="main-content">
                     <button onClick={startMonitoring}>Mulai Monitoring</button>
-                    <button onClick={promptUpdateWeight}>Update Berat Badan</button>
+                    <button onClick={promptUpdateWeight}>
+                         Update Berat Badan
+                    </button>
                     <p className="status-text">{status}</p>
                     <p className="card-status-text">{cardStatus}</p>
-
                     {showResult && (
                          <div className="result-box">
                               <p>
-                                   <strong>Distance:</strong> {distance} meters
+                                   <strong>Distance:</strong> {distance} m
                               </p>
                               <p>
-                                   <strong>Calories Burned:</strong> {calories} kcal
+                                   <strong>Calories:</strong> {calories} kcal
                               </p>
                          </div>
                     )}
                </main>
-
                <footer>
                     <p>&copy; 2025 Fitness Tracker</p>
                </footer>
 
+               {openModal && cardId && (
+                    <Signup
+                         cardId={cardId}
+                         onClose={() => setOpenModal(false)}
+                    />
+               )}
+
                <style jsx>{`
                     body {
-                         font-family: 'Arial', sans-serif;
+                         font-family: "Arial", sans-serif;
                          background: linear-gradient(135deg, #6a5acd, #8a2be2);
                          color: white;
                          display: flex;
@@ -263,5 +247,3 @@ function App() {
           </div>
      );
 }
-
-export default App;
