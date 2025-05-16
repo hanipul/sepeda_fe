@@ -95,15 +95,37 @@ export default function App() {
      const fetchFinalSession = async (cardId) => {
           try {
                const res = await fetch(`${BASE_URL}/sessions/${cardId}`);
-               const { sessions } = await res.json();
-               if (sessions?.length) {
-                    const s = sessions[0];
-                    setDistance(s.distance?.toFixed(2) ?? "0");
-                    setCalories(s.calories?.toFixed(2) ?? "0");
+
+               if (!res.ok) {
+                    throw new Error(`Server error: ${res.status}`);
+               }
+
+               const data = await res.json();
+               console.log("fetchFinalSession response:", data);
+
+               const sessions = Array.isArray(data.sessions)
+                    ? data.sessions
+                    : [];
+
+               if (sessions.length > 0) {
+                    const session = sessions[0];
+
+                    const rawDistance =
+                         typeof session.distance === "number"
+                              ? session.distance
+                              : Number(session.distance) || 0;
+                    const rawCalories =
+                         typeof session.calories === "number"
+                              ? session.calories
+                              : Number(session.calories) || 0;
+
+                    setDistance(rawDistance.toFixed(2));
+                    setCalories(rawCalories.toFixed(2));
                     setShowResult(true);
                     setStatus("✅ Sesi selesai.");
                } else {
                     alert("❌ Sesi tidak ditemukan.");
+                    setStatus("❌ Sesi tidak ditemukan.");
                }
           } catch (err) {
                console.error("Fetch final error:", err);
