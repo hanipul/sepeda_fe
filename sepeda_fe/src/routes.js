@@ -6,8 +6,8 @@ function RootApp() {
     return (
         <Router>
             <Routes>
-                <Route path="/" element={<App />} />
-                <Route path="/signup" element={<Signup />} />
+                <Route path="/App" element={<App />} />
+                <Route path="/Signup" element={<Signup />} />
             </Routes>
         </Router>
     );

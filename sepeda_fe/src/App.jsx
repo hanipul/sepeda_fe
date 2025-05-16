@@ -49,8 +49,6 @@ function App() {
                                    "✅ Kartu terbaca! Silakan mulai olahraga."
                               );
                               setDataKartu(data);
-                              console.log("Data Kartu:", data);
-                              console.log("checkRes:", checkRes);
                               setStatus("🚴 Monitoring sesi...");
                               setTimeout(() => startEndPolling(), 1500);
                          } else {
@@ -165,31 +163,19 @@ function App() {
           if (dataKartu) {
                fetchLatestUserSesion();
           }
-     }, []);
+     }, [dataKartu]);
 
      return (
-          <>
+          <div className="app-container">
                <header>
                     <h1>SEPEDA STATIS</h1>
                </header>
 
-               <main>
-                    <button
-                         onClick={
-                              startMonitoring
-                         }
-                    >
-                         Mulai Monitoring
-                    </button>
-                    <button onClick={promptUpdateWeight}>
-                         Update Berat Badan
-                    </button>
-                    <p style={{ fontWeight: "bold", marginTop: "20px" }}>
-                         {status}
-                    </p>
-                    <p style={{ fontWeight: "bold", color: "green" }}>
-                         {cardStatus}
-                    </p>
+               <main className="main-content">
+                    <button onClick={startMonitoring}>Mulai Monitoring</button>
+                    <button onClick={promptUpdateWeight}>Update Berat Badan</button>
+                    <p className="status-text">{status}</p>
+                    <p className="card-status-text">{cardStatus}</p>
 
                     {showResult && (
                          <div className="result-box">
@@ -197,8 +183,7 @@ function App() {
                                    <strong>Distance:</strong> {distance} meters
                               </p>
                               <p>
-                                   <strong>Calories Burned:</strong> {calories}{" "}
-                                   kcal
+                                   <strong>Calories Burned:</strong> {calories} kcal
                               </p>
                          </div>
                     )}
@@ -207,10 +192,76 @@ function App() {
                <footer>
                     <p>&copy; 2025 Fitness Tracker</p>
                </footer>
-          </>
+
+               <style jsx>{`
+                    body {
+                         font-family: 'Arial', sans-serif;
+                         background: linear-gradient(135deg, #6a5acd, #8a2be2);
+                         color: white;
+                         display: flex;
+                         justify-content: center;
+                         align-items: center;
+                         height: 100vh;
+                         margin: 0;
+                    }
+
+                    .app-container {
+                         text-align: center;
+                         width: 100%;
+                         max-width: 800px;
+                         padding: 20px;
+                         box-sizing: border-box;
+                    }
+
+                    header h1 {
+                         color: #fff;
+                         font-size: 36px;
+                    }
+
+                    .main-content {
+                         background-color: rgba(255, 255, 255, 0.2);
+                         padding: 20px;
+                         border-radius: 10px;
+                         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    }
+
+                    button {
+                         background-color: #4b0082;
+                         color: white;
+                         padding: 10px 20px;
+                         border: none;
+                         border-radius: 5px;
+                         font-size: 16px;
+                         cursor: pointer;
+                         margin: 10px;
+                    }
+
+                    button:hover {
+                         background-color: #5a2d99;
+                    }
+
+                    .status-text,
+                    .card-status-text {
+                         font-weight: bold;
+                         margin-top: 20px;
+                    }
+
+                    .result-box {
+                         margin-top: 20px;
+                         padding: 10px;
+                         background-color: #fff;
+                         color: #333;
+                         border-radius: 5px;
+                         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    }
+
+                    footer {
+                         margin-top: 20px;
+                         font-size: 14px;
+                    }
+               `}</style>
+          </div>
      );
 }
 
 export default App;
-// App.jsx
-// This is the main component of the application.
