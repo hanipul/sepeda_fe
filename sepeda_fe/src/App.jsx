@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const BASE_URL = "http://192.168.43.42:3000";
+const BASE_URL = "http://192.168.18.198:3000";
 
 function App() {
      const [status, setStatus] = useState("Waiting for RFID scan...");
@@ -175,10 +175,9 @@ function App() {
 
                <main>
                     <button
-                         onClick={() => {
-                              startMonitoring;
-							  setShowResult(false);
-                         }}
+                         onClick={
+                              startMonitoring
+                         }
                     >
                          Mulai Monitoring
                     </button>

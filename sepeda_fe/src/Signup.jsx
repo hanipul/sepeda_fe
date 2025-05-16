@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const BASE_URL = 'http://192.168.43.42:3000';
+const BASE_URL = 'http://192.168.18.198:3000';
 
 function Signup() {
   const [form, setForm] = useState({ name: '', weight: '', gender: '' });
