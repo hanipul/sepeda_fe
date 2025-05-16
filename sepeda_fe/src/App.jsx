@@ -5,6 +5,7 @@ const BASE_URL = "http://192.168.43.42:3000";
 function App() {
      const [status, setStatus] = useState("Waiting for RFID scan...");
      const [cardStatus, setCardStatus] = useState("");
+     const [dataKartu, setDataKartu] = useState(null);
      const [distance, setDistance] = useState(0);
      const [calories, setCalories] = useState(0);
      const [showResult, setShowResult] = useState(false);
@@ -47,6 +48,9 @@ function App() {
                               setCardStatus(
                                    "✅ Kartu terbaca! Silakan mulai olahraga."
                               );
+                              setDataKartu(data);
+                              console.log("Data Kartu:", data);
+                              console.log("checkRes:", checkRes);
                               setStatus("🚴 Monitoring sesi...");
                               setTimeout(() => startEndPolling(), 1500);
                          } else {
@@ -136,6 +140,32 @@ function App() {
                alert("Input tidak valid.");
           }
      };
+
+     const fetchLatestUserSesion = async () => {
+          try {
+               const res = await fetch(
+                    `${BASE_URL}/sessions/latest/${dataKartu.cardId}`
+               );
+               if (res.ok) {
+                    const data = await res.json();
+                    console.log(
+                         "---------------Latest session data ----------- :",
+                         data
+                    );
+               } else {
+                    console.error("Failed to fetch latest session.");
+               }
+          } catch (error) {
+               console.error("Error fetching latest user session:", error);
+               alert("Gagal mengambil data sesi terbaru.");
+          }
+     };
+
+     useEffect(() => {
+          if (dataKartu) {
+               fetchLatestUserSesion();
+          }
+     }, []);
 
      return (
           <>
