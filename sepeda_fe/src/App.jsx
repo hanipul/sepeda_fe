@@ -174,7 +174,14 @@ function App() {
                </header>
 
                <main>
-                    <button onClick={startMonitoring}>Mulai Monitoring</button>
+                    <button
+                         onClick={() => {
+                              startMonitoring;
+							  setShowResult(false);
+                         }}
+                    >
+                         Mulai Monitoring
+                    </button>
                     <button onClick={promptUpdateWeight}>
                          Update Berat Badan
                     </button>
