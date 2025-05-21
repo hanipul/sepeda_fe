@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import Signup from "./Signup";
 
-const BASE_URL = "http://192.168.18.198:3000";
+const BASE_URL = "http://192.168.0.111:3000";
 
 export default function App() {
      const [status, setStatus] = useState("Waiting for RFID scan...");
@@ -21,118 +21,107 @@ export default function App() {
      }, []);
 
      const startMonitoring = () => {
-          clearInterval(pollRef.current);
-          setStatus("⏳ Menunggu kartu RFID...");
-          setCardStatus("");
-          setShowResult(false);
-          setSessionEnded(false);
+    clearInterval(pollRef.current);
+    setStatus("⏳ Menunggu kartu RFID...");
+    setCardStatus("");
+    setShowResult(false);
+    setSessionEnded(false);
 
-          let attempt = 0;
-          pollRef.current = setInterval(async () => {
-               attempt++;
-               try {
-                    const res = await fetch(`${BASE_URL}/scan/card`);
-                    if (!res.ok) {
-                         if (attempt > 15) {
-                              clearInterval(pollRef.current);
-                              setStatus("⛔ Tidak ada kartu terdeteksi.");
-                         }
-                         return;
-                    }
-                    const { cardId } = await res.json();
+    let attempt = 0;
+    pollRef.current = setInterval(async () => {
+        attempt++;
+        try {
+            const res = await fetch(`${BASE_URL}/scan/card`);
+            if (!res.ok) {
+                if (attempt > 15) {
                     clearInterval(pollRef.current);
-                    localStorage.setItem("activeCardId", cardId);
-                    setCardId(cardId);
+                    setStatus("⛔ Tidak ada kartu terdeteksi.");
+                }
+                return;
+            }
+            const { cardId } = await res.json();
+            clearInterval(pollRef.current);
+            localStorage.setItem("activeCardId", cardId);
+            setCardId(cardId);
 
-                    const checkRes = await fetch(
-                         `${BASE_URL}/sessions/check-user`,
-                         {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ cardId }),
-                         }
-                    );
-                    const { userExists } = await checkRes.json();
-                    if (userExists) {
-                         setCardStatus(
-                              "✅ Kartu terbaca! Silakan mulai olahraga."
-                         );
-                         setDataKartu({ cardId });
-                         setStatus("🚴 Monitoring sesi...");
-                         setTimeout(startEndPolling, 1500);
-                    } else {
-                         setOpenModal(true);
-                    }
-               } catch (err) {
-                    console.error("Polling error:", err);
-                    clearInterval(pollRef.current);
-                    setStatus("❌ Terjadi kesalahan polling.");
-               }
-          }, 2000);
-     };
+            const checkRes = await fetch(
+                `${BASE_URL}/sessions/check-user`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ cardId }),
+                }
+            );
+            const { userExists } = await checkRes.json();
+            if (userExists) {
+                setCardStatus("✅ Kartu terbaca! Silakan mulai olahraga.");
+                setDataKartu({ cardId });
+                setStatus("🚴 Monitoring sesi...");
+                setTimeout(startEndPolling, 1500);
+            } else {
+                setOpenModal(true);
+            }
+        } catch (err) {
+            console.error("Polling error:", err);
+            clearInterval(pollRef.current);
+            setStatus("❌ Terjadi kesalahan polling.");
+        }
+    }, 2000);
+};
 
-     const startEndPolling = () => {
-          clearInterval(pollRef.current);
-          pollRef.current = setInterval(async () => {
-               try {
-                    const res = await fetch(
-                         `${BASE_URL}/sessions/active-latest`
-                    );
-                    if (res.status === 404 && !sessionEnded) {
-                         clearInterval(pollRef.current);
-                         setSessionEnded(true);
-                         setCardStatus("✅ Sesi berakhir.");
-                         setStatus("⏳ Mengambil hasil latihan...");
-                         setTimeout(() => fetchFinalSession(cardId), 1500);
-                    }
-               } catch (err) {
-                    console.error("Polling end error:", err);
-                    clearInterval(pollRef.current);
-               }
-          }, 2000);
-     };
+const startEndPolling = () => {
+    clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+        try {
+            console.log("Polling for active session...");
+            const res = await fetch(`${BASE_URL}/sessions/active-latest`);
+            const data = await res.json();
+            console.log("Polling response data:", data);
 
-     const fetchFinalSession = async (cardId) => {
-          try {
-               const res = await fetch(`${BASE_URL}/sessions/${cardId}`);
+            if (res.status === 404 && !sessionEnded) {
+                clearInterval(pollRef.current);
+                setSessionEnded(true);
+                setCardStatus("✅ Sesi berakhir.");
+                setStatus("⏳ Mengambil hasil latihan...");
+                setTimeout(() => fetchFinalSession(cardId), 1500);
+            }
+        } catch (err) {
+            console.error("Polling error:", err);
+            clearInterval(pollRef.current);
+        }
+    }, 2000);
+};
 
-               if (!res.ok) {
-                    throw new Error(`Server error: ${res.status}`);
-               }
 
-               const data = await res.json();
-               console.log("fetchFinalSession response:", data);
+const fetchFinalSession = async (cardId) => {
+    if (!cardId) {
+        console.error("Card ID is invalid");
+        alert("Card ID tidak valid.");
+        setStatus("❌ Card ID tidak valid.");
+        return;
+    }
 
-               const sessions = Array.isArray(data.sessions)
-                    ? data.sessions
-                    : [];
+    const res = await fetch(`${BASE_URL}/sessions/${cardId}`);
+    if (!res.ok) {
+        console.log("Error fetching session:", res.statusText);
+        setStatus("❌ Gagal mengambil data sesi.");
+        return;
+    }
 
-               if (sessions.length > 0) {
-                    const session = sessions[0];
+    const data = await res.json();
+    if (data.sessions && data.sessions.length > 0) {
+        const session = data.sessions[0];
+        setDistance(session.distance);
+        setCalories(session.calories);
+        setShowResult(true);
+        setStatus("✅ Sesi selesai.");
+    } else {
+        alert("❌ Sesi tidak ditemukan.");
+        setStatus("❌ Sesi tidak ditemukan.");
+    }
+};
 
-                    const rawDistance =
-                         typeof session.distance === "number"
-                              ? session.distance
-                              : Number(session.distance) || 0;
-                    const rawCalories =
-                         typeof session.calories === "number"
-                              ? session.calories
-                              : Number(session.calories) || 0;
 
-                    setDistance(rawDistance.toFixed(2));
-                    setCalories(rawCalories.toFixed(2));
-                    setShowResult(true);
-                    setStatus("✅ Sesi selesai.");
-               } else {
-                    alert("❌ Sesi tidak ditemukan.");
-                    setStatus("❌ Sesi tidak ditemukan.");
-               }
-          } catch (err) {
-               console.error("Fetch final error:", err);
-               alert("❌ Gagal mengambil data sesi.");
-               setStatus("❌ Error fetching session.");
-          }
-     };
 
      const promptUpdateWeight = () => {
           if (!cardId) return alert("Scan kartu dulu sebelum update berat.");
