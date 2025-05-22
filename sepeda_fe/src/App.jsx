@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import Signup from "./Signup";
 
-const BASE_URL = "http://192.168.0.111:3000";
+const BASE_URL = "http://192.168.18.198:3000";
 
 export default function App() {
      const [status, setStatus] = useState("Waiting for RFID scan...");
@@ -83,7 +83,9 @@ const startEndPolling = () => {
                 setSessionEnded(true);
                 setCardStatus("✅ Sesi berakhir.");
                 setStatus("⏳ Mengambil hasil latihan...");
-                setTimeout(() => fetchFinalSession(cardId), 1500);
+                const storedCardId = localStorage.getItem("activeCardId");
+                setTimeout(() => fetchFinalSession(storedCardId), 1500);
+
             }
         } catch (err) {
             console.error("Polling error:", err);
@@ -93,7 +95,8 @@ const startEndPolling = () => {
 };
 
 
-const fetchFinalSession = async (cardId) => {
+const fetchFinalSession = async (cardIdParam) => {
+    const cardId = cardIdParam || localStorage.getItem("activeCardId");
     if (!cardId) {
         console.error("Card ID is invalid");
         alert("Card ID tidak valid.");
@@ -120,6 +123,7 @@ const fetchFinalSession = async (cardId) => {
         setStatus("❌ Sesi tidak ditemukan.");
     }
 };
+
 
 
 

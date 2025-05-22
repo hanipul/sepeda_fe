@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const BASE_URL = "http://192.168.0.111:3000";
+const BASE_URL = "http://192.168.18.198:3000";
 
 export default function Signup({ cardId, onClose }) {
      const [form, setForm] = useState({ name: "", weight: "", gender: "" });
