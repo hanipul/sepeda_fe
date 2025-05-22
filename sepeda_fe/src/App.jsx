@@ -4,7 +4,7 @@ import Signup from "./Signup";
 const BASE_URL = "http://192.168.18.198:3000";
 
 export default function App() {
-     const [status, setStatus] = useState("Waiting for RFID scan...");
+     const [status, setStatus] = useState("Menunggu kartu...");
      const [cardStatus, setCardStatus] = useState("");
      const [dataKartu, setDataKartu] = useState(null);
      const [distance, setDistance] = useState(0);
@@ -22,7 +22,7 @@ export default function App() {
 
      const startMonitoring = () => {
     clearInterval(pollRef.current);
-    setStatus("⏳ Menunggu kartu RFID...");
+    setStatus("⏳ Silahkan tempelkan kartu...");
     setCardStatus("");
     setShowResult(false);
     setSessionEnded(false);
